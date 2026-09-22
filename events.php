@@ -48,12 +48,46 @@ foreach ($events as $e) {
             </div>
         <?php else: ?>
             <div class="grid gap-6 lg:grid-cols-2">
-                <?php foreach ($upcoming as $e): ?>
+                <?php foreach ($upcoming as $e): 
+                    $photos = [];
+                    if (!empty($e['image'])) {
+                        $photos[] = $e['image'];
+                    }
+                    if (!empty($e['gallery']) && is_array($e['gallery'])) {
+                        foreach ($e['gallery'] as $p) {
+                            if (!empty($p) && !in_array($p, $photos)) {
+                                $photos[] = $p;
+                            }
+                        }
+                    }
+                ?>
                     <article class="overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.02] flex flex-col justify-between shadow-sm hover-glow-card">
                         <!-- Event Image Header -->
-                        <?php if (isset($e['image']) && !empty($e['image'])): ?>
+                        <?php if (count($photos) > 1): ?>
+                            <div class="gallery-slider group relative h-56 w-full overflow-hidden bg-black">
+                                <div class="absolute inset-0 z-0 overflow-hidden">
+                                    <?php foreach ($photos as $idx => $img): ?>
+                                        <div class="slider-slide absolute inset-0 transition-all duration-700 <?php echo $idx === 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'; ?>">
+                                            <img src="<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($e['title']); ?>" class="h-full w-full object-cover">
+                                        </div>
+                                    <?php endforeach; ?>
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
+                                </div>
+                                <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 z-20 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <button class="slider-prev cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-black/60 border border-white/10 text-white hover:bg-black">
+                                        ◀
+                                    </button>
+                                    <button class="slider-next cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-black/60 border border-white/10 text-white hover:bg-black">
+                                        ▶
+                                    </button>
+                                </div>
+                                <div class="absolute top-3 right-3 z-10 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-[9px] font-black text-white/90">
+                                    📷 <?php echo count($photos); ?> photos
+                                </div>
+                            </div>
+                        <?php elseif (count($photos) === 1): ?>
                             <div class="relative h-56 w-full overflow-hidden">
-                                <img src="<?php echo $e['image']; ?>" alt="<?php echo $e['title']; ?>" class="h-full w-full object-cover">
+                                <img src="<?php echo htmlspecialchars($photos[0]); ?>" alt="<?php echo htmlspecialchars($e['title']); ?>" class="h-full w-full object-cover">
                                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
                             </div>
                         <?php else: ?>
@@ -107,7 +141,17 @@ foreach ($events as $e) {
 
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <?php foreach ($past as $e): 
-                $gallery = isset($e['gallery']) && is_array($e['gallery']) ? $e['gallery'] : [];
+                $gallery = [];
+                if (!empty($e['image'])) {
+                    $gallery[] = $e['image'];
+                }
+                if (!empty($e['gallery']) && is_array($e['gallery'])) {
+                    foreach ($e['gallery'] as $p) {
+                        if (!empty($p) && !in_array($p, $gallery)) {
+                            $gallery[] = $p;
+                        }
+                    }
+                }
             ?>
                 <!-- Past Event Card -->
                 <div class="gallery-slider group relative overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 bg-black h-72 shadow-lg hover-glow-card">
@@ -129,6 +173,9 @@ foreach ($events as $e) {
 
                     <!-- Slide Navigation Controls (Only visible if multi-image) -->
                     <?php if (count($gallery) > 1): ?>
+                        <div class="absolute top-3 right-3 z-20 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-[9px] font-black text-white/90">
+                            📷 <?php echo count($gallery); ?> photos
+                        </div>
                         <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 z-20 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <button class="slider-prev cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-black/60 border border-white/10 text-white hover:bg-black">
                                 ◀
