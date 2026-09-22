@@ -84,69 +84,89 @@ if (!function_exists('get_member_tier_class')) {
             </div>
         </div>
 
-        <div class="mt-6 grid gap-6 lg:grid-cols-2">
-            <!-- Lead Spotlight Card -->
-            <?php if ($leader_spotlight): ?>
-                <a href="#" class="member-modal-trigger group relative overflow-hidden rounded-3xl p-6 tier-gold reflective-card shadow-lg flex items-start gap-5"
-                   data-id="<?php echo $leader_spotlight['id']; ?>"
-                   data-name="<?php echo htmlspecialchars($leader_spotlight['name']); ?>"
-                   data-role="<?php echo htmlspecialchars($leader_spotlight['role']); ?>"
-                   data-team="<?php echo htmlspecialchars($leader_spotlight['team']); ?>"
-                   data-level="<?php echo htmlspecialchars($leader_spotlight['level']); ?>"
-                   data-campus="<?php echo htmlspecialchars($leader_spotlight['campus']); ?>"
-                   data-points="<?php echo htmlspecialchars($leader_spotlight['points']); ?>"
-                   data-responsibilities="<?php echo htmlspecialchars($leader_spotlight['responsibilities']); ?>"
-                   data-img="<?php echo htmlspecialchars($leader_spotlight['image']); ?>"
-                   data-rank="0">
-                    
-                    <div class="pointer-events-none absolute -inset-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(closest-side,rgba(139,92,246,0.2),rgba(217,70,239,0.1),transparent_70%)]"></div>
-                    
-                    <img src="<?php echo $leader_spotlight['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" alt="<?php echo $leader_spotlight['name']; ?>" class="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border border-slate-200 dark:border-white/10 shadow-md">
-                    
-                    <div class="min-w-0 flex-grow relative z-10">
-                        <p class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors font-space"><?php echo $leader_spotlight['name']; ?></p>
-                        <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1"><?php echo $leader_spotlight['role']; ?></p>
-                        <div class="mt-4 flex flex-wrap gap-1.5">
-                            <span class="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-purple-650 dark:text-purple-305">
-                                <?php echo $leader_spotlight['team']; ?>
-                            </span>
-                            <span class="rounded-full bg-slate-100 dark:bg-white/5 border border-slate-250 dark:border-white/10 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-slate-700 dark:text-white/80">
+        <!-- HIERARCHY TREE LAYOUT (DRAFT ALIGNMENT) -->
+        <div class="mt-8 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.01] p-6 sm:p-10 shadow-sm backdrop-blur-md">
+            
+            <!-- Core Chapter Leader (Top Node - Centered) -->
+            <?php if ($leader_spotlight): 
+                $tier_class = get_member_tier_class($leader_spotlight['points']);
+            ?>
+                <div class="flex justify-center">
+                    <a href="#" class="member-modal-trigger group relative overflow-hidden rounded-3xl p-6 tier-gold reflective-card shadow-lg flex flex-col items-center text-center w-full max-w-[280px] hover:scale-105 transition-all duration-300"
+                       data-id="<?php echo $leader_spotlight['id']; ?>"
+                       data-name="<?php echo htmlspecialchars($leader_spotlight['name']); ?>"
+                       data-role="<?php echo htmlspecialchars($leader_spotlight['role']); ?>"
+                       data-team="<?php echo htmlspecialchars($leader_spotlight['team']); ?>"
+                       data-level="<?php echo htmlspecialchars($leader_spotlight['level']); ?>"
+                       data-campus="<?php echo htmlspecialchars($leader_spotlight['campus']); ?>"
+                       data-points="<?php echo htmlspecialchars($leader_spotlight['points']); ?>"
+                       data-responsibilities="<?php echo htmlspecialchars($leader_spotlight['responsibilities']); ?>"
+                       data-img="<?php echo htmlspecialchars($leader_spotlight['image']); ?>"
+                       data-rank="0">
+                        
+                        <div class="relative mb-3">
+                            <img src="<?php echo $leader_spotlight['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" 
+                                 alt="<?php echo $leader_spotlight['name']; ?>" 
+                                 class="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border-2 border-amber-500/50 shadow-md ring-4 ring-amber-500/15 group-hover:ring-amber-500/30 transition-all">
+                            <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-0.5 text-[8px] font-black uppercase tracking-wider text-black shadow whitespace-nowrap">
                                 <?php echo $leader_spotlight['level']; ?>
                             </span>
                         </div>
-                    </div>
-                </a>
+                        
+                        <p class="text-lg sm:text-xl font-black text-slate-900 dark:text-white group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors font-space leading-tight">
+                            <?php echo $leader_spotlight['name']; ?>
+                        </p>
+                        <p class="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400 mt-1">
+                            <?php echo $leader_spotlight['role']; ?>
+                        </p>
+                        <p class="text-xs font-black text-purple-650 dark:text-purple-400 mt-2">
+                            <?php echo number_format($leader_spotlight['points']); ?> <span class="text-[9px] uppercase font-bold text-slate-400">PTS</span>
+                        </p>
+                    </a>
+                </div>
             <?php endif; ?>
 
-            <!-- Other core leaders list -->
-            <div class="grid gap-3">
-                <?php foreach ($other_leads as $lead): 
-                    $tier_class = get_member_tier_class($lead['points']);
-                ?>
-                    <a href="#" class="member-modal-trigger group flex items-center gap-4 rounded-2xl p-4 reflective-card shadow-sm text-left <?php echo $tier_class; ?>"
-                       data-id="<?php echo $lead['id']; ?>"
-                       data-name="<?php echo htmlspecialchars($lead['name']); ?>"
-                       data-role="<?php echo htmlspecialchars($lead['role']); ?>"
-                       data-team="<?php echo htmlspecialchars($lead['team']); ?>"
-                       data-level="<?php echo htmlspecialchars($lead['level']); ?>"
-                       data-campus="<?php echo htmlspecialchars($lead['campus']); ?>"
-                       data-points="<?php echo htmlspecialchars($lead['points']); ?>"
-                       data-responsibilities="<?php echo htmlspecialchars($lead['responsibilities']); ?>"
-                       data-img="<?php echo htmlspecialchars($lead['image']); ?>"
-                       data-rank="0">
-                        
-                        <img src="<?php echo $lead['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" alt="<?php echo $lead['name']; ?>" class="h-11 w-11 rounded-xl object-cover border border-slate-200 dark:border-white/10">
-                        <div class="min-w-0 flex-grow">
-                            <p class="truncate text-sm font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors"><?php echo $lead['name']; ?></p>
-                            <p class="truncate text-xs text-slate-500 dark:text-zinc-400"><?php echo $lead['role']; ?></p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm font-black text-purple-605 dark:text-purple-200"><?php echo number_format($lead['points']); ?></p>
-                            <p class="text-[8px] font-black uppercase tracking-widest text-purple-650 dark:text-purple-405">PTS</p>
-                        </div>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+            <!-- Connector Stem (Vertical Line) -->
+            <?php if (!empty($other_leads)): ?>
+                <div class="flex justify-center my-4">
+                    <div class="w-0.5 h-8 sm:h-10 bg-gradient-to-b from-amber-500/50 to-slate-300 dark:to-white/20 rounded-full"></div>
+                </div>
+
+                <!-- Other Core Leaders Grid (Horizontal Row Below Lead) -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 justify-center max-w-5xl mx-auto">
+                    <?php foreach ($other_leads as $lead): 
+                        $tier_class = get_member_tier_class($lead['points']);
+                    ?>
+                        <a href="#" class="member-modal-trigger group flex flex-col items-center text-center p-4 rounded-2xl reflective-card shadow-sm hover:scale-105 transition-all duration-300 <?php echo $tier_class; ?>"
+                           data-id="<?php echo $lead['id']; ?>"
+                           data-name="<?php echo htmlspecialchars($lead['name']); ?>"
+                           data-role="<?php echo htmlspecialchars($lead['role']); ?>"
+                           data-team="<?php echo htmlspecialchars($lead['team']); ?>"
+                           data-level="<?php echo htmlspecialchars($lead['level']); ?>"
+                           data-campus="<?php echo htmlspecialchars($lead['campus']); ?>"
+                           data-points="<?php echo htmlspecialchars($lead['points']); ?>"
+                           data-responsibilities="<?php echo htmlspecialchars($lead['responsibilities']); ?>"
+                           data-img="<?php echo htmlspecialchars($lead['image']); ?>"
+                           data-rank="0">
+                            
+                            <img src="<?php echo $lead['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" 
+                                 alt="<?php echo $lead['name']; ?>" 
+                                 class="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover border border-slate-200 dark:border-white/10 shadow-sm ring-2 ring-transparent group-hover:ring-purple-500/30 transition-all">
+                            
+                            <p class="truncate w-full text-xs sm:text-sm font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors font-space mt-2.5">
+                                <?php echo $lead['name']; ?>
+                            </p>
+                            <p class="truncate w-full text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 font-medium">
+                                <?php echo $lead['role']; ?>
+                            </p>
+                            <p class="text-[10px] font-black text-purple-600 dark:text-purple-400 mt-1.5">
+                                <?php echo number_format($lead['points']); ?> <span class="text-[8px] font-bold text-slate-400">PTS</span>
+                            </p>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
         </div>
     </section>
 
@@ -195,16 +215,16 @@ if (!function_exists('get_member_tier_class')) {
                     </div>
                 </div>
 
-                <!-- Content grid layout -->
-                <div class="grid gap-6 <?php echo ($num_spotlights > 1) ? 'lg:grid-cols-3' : 'lg:grid-cols-2'; ?>">
+                <!-- Tree Hierarchy Layout Container (Matching Draft Image) -->
+                <div class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.01] p-6 sm:p-10 shadow-sm backdrop-blur-md">
                     
-                    <!-- Spotlights column (LEADERS ON THE LEFT) -->
+                    <!-- Team Lead(s) (Top Node - Centered) -->
                     <?php if ($num_spotlights > 0): ?>
-                        <div class="<?php echo ($num_spotlights > 1) ? 'lg:col-span-2 grid gap-6 sm:grid-cols-2' : ''; ?>">
+                        <div class="flex justify-center items-center gap-6 sm:gap-8 flex-wrap">
                             <?php foreach ($spotlights as $spot): 
                                 $tier_class = get_member_tier_class($spot['points']);
                             ?>
-                                <a href="#" class="member-modal-trigger group relative overflow-hidden rounded-3xl p-5 reflective-card shadow-lg flex flex-col justify-between <?php echo $tier_class; ?>"
+                                <a href="#" class="member-modal-trigger group flex flex-col items-center text-center p-5 rounded-3xl reflective-card shadow-md transition-all duration-300 hover:scale-105 w-full max-w-[260px] <?php echo $tier_class; ?>"
                                    data-id="<?php echo $spot['id']; ?>"
                                    data-name="<?php echo htmlspecialchars($spot['name']); ?>"
                                    data-role="<?php echo htmlspecialchars($spot['role']); ?>"
@@ -216,61 +236,69 @@ if (!function_exists('get_member_tier_class')) {
                                    data-img="<?php echo htmlspecialchars($spot['image']); ?>"
                                    data-rank="0">
                                     
-                                    <div class="pointer-events-none absolute -inset-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(closest-side,rgba(139,92,246,0.18),rgba(217,70,239,0.1),transparent_70%)]"></div>
-                                    
-                                    <div class="flex items-start gap-4">
-                                        <img src="<?php echo $spot['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" alt="<?php echo $spot['name']; ?>" class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 dark:border-white/10 shadow-md">
-                                        <div class="min-w-0 flex-grow relative z-10">
-                                            <h4 class="text-lg font-black text-slate-900 dark:text-white group-hover:text-purple-650 dark:group-hover:text-purple-450 transition-colors font-space leading-tight"><?php echo $spot['name']; ?></h4>
-                                            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1"><?php echo $spot['role']; ?></p>
-                                        </div>
+                                    <div class="relative mb-3">
+                                        <img src="<?php echo $spot['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" 
+                                             alt="<?php echo $spot['name']; ?>" 
+                                             class="h-20 w-20 sm:h-22 sm:w-22 rounded-full object-cover border-2 border-purple-500/30 dark:border-purple-400/40 shadow-lg ring-4 ring-purple-500/10 group-hover:ring-purple-500/30 transition-all">
+                                        <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-purple-600 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white shadow whitespace-nowrap">
+                                            <?php echo $spot['level']; ?>
+                                        </span>
                                     </div>
                                     
-                                    <div class="mt-6 flex items-end justify-between relative z-10">
-                                        <div class="flex gap-1">
-                                            <span class="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-purple-655 dark:text-purple-305">
-                                                <?php echo $spot['level']; ?>
-                                            </span>
-                                        </div>
-                                        <div class="text-right">
-                                            <p class="text-base font-black text-slate-900 dark:text-white leading-none"><?php echo number_format($spot['points']); ?></p>
-                                            <p class="text-[8px] font-black uppercase tracking-widest text-purple-650 dark:text-purple-400 mt-0.5">points</p>
-                                        </div>
-                                    </div>
+                                    <h4 class="text-base sm:text-lg font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors font-space leading-tight">
+                                        <?php echo $spot['name']; ?>
+                                    </h4>
+                                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-medium">
+                                        <?php echo $spot['role']; ?>
+                                    </p>
+                                    <p class="text-xs font-black text-purple-650 dark:text-purple-400 mt-2">
+                                        <?php echo number_format($spot['points']); ?> <span class="text-[8px] font-bold text-slate-400">PTS</span>
+                                    </p>
                                 </a>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
 
-                    <!-- Grid for other members -->
-                    <div class="grid gap-3">
-                        <?php foreach ($rest as $m): 
-                            $tier_class = get_member_tier_class($m['points']);
-                        ?>
-                            <a href="#" class="member-modal-trigger group flex items-center gap-4 rounded-2xl p-4 reflective-card shadow-sm text-left <?php echo $tier_class; ?>"
-                               data-id="<?php echo $m['id']; ?>"
-                               data-name="<?php echo htmlspecialchars($m['name']); ?>"
-                               data-role="<?php echo htmlspecialchars($m['role']); ?>"
-                               data-team="<?php echo htmlspecialchars($m['team']); ?>"
-                               data-level="<?php echo htmlspecialchars($m['level']); ?>"
-                               data-campus="<?php echo htmlspecialchars($m['campus']); ?>"
-                               data-points="<?php echo htmlspecialchars($m['points']); ?>"
-                               data-responsibilities="<?php echo htmlspecialchars($m['responsibilities']); ?>"
-                               data-img="<?php echo htmlspecialchars($m['image']); ?>"
-                               data-rank="0">
-                                
-                                <img src="<?php echo $m['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" alt="<?php echo $m['name']; ?>" class="h-10 w-10 sm:h-11 sm:w-11 rounded-xl object-cover border border-slate-200 dark:border-white/10">
-                                <div class="min-w-0 flex-grow">
-                                    <p class="truncate text-sm font-black text-slate-900 dark:text-white group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors font-space"><?php echo $m['name']; ?></p>
-                                    <p class="truncate text-xs text-slate-505 dark:text-zinc-400"><?php echo $m['role']; ?></p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-black text-slate-900 dark:text-white"><?php echo number_format($m['points']); ?></p>
-                                    <p class="text-[9px] font-black uppercase tracking-widest text-purple-650 dark:text-purple-405">PTS</p>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
+                    <!-- Connector Stem (Vertical Line) -->
+                    <?php if (!empty($rest)): ?>
+                        <div class="flex justify-center my-4">
+                            <div class="w-0.5 h-8 sm:h-10 bg-gradient-to-b from-purple-500/40 to-slate-300 dark:to-white/20 rounded-full"></div>
+                        </div>
+
+                        <!-- Team Members Row / Grid (Horizontally Aligned Below Lead) -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 justify-center max-w-5xl mx-auto">
+                            <?php foreach ($rest as $m): 
+                                $tier_class = get_member_tier_class($m['points']);
+                            ?>
+                                <a href="#" class="member-modal-trigger group flex flex-col items-center text-center p-4 rounded-2xl reflective-card shadow-sm transition-all duration-300 hover:scale-105 <?php echo $tier_class; ?>"
+                                   data-id="<?php echo $m['id']; ?>"
+                                   data-name="<?php echo htmlspecialchars($m['name']); ?>"
+                                   data-role="<?php echo htmlspecialchars($m['role']); ?>"
+                                   data-team="<?php echo htmlspecialchars($m['team']); ?>"
+                                   data-level="<?php echo htmlspecialchars($m['level']); ?>"
+                                   data-campus="<?php echo htmlspecialchars($m['campus']); ?>"
+                                   data-points="<?php echo htmlspecialchars($m['points']); ?>"
+                                   data-responsibilities="<?php echo htmlspecialchars($m['responsibilities']); ?>"
+                                   data-img="<?php echo htmlspecialchars($m['image']); ?>"
+                                   data-rank="0">
+                                    
+                                    <img src="<?php echo $m['image'] ?: 'public/images/AWS-MembersPics/default.png'; ?>" 
+                                         alt="<?php echo $m['name']; ?>" 
+                                         class="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover border border-slate-200 dark:border-white/10 shadow-sm ring-2 ring-transparent group-hover:ring-purple-500/30 transition-all">
+                                    
+                                    <p class="truncate w-full text-xs sm:text-sm font-black text-slate-900 dark:text-white group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors font-space mt-2.5">
+                                        <?php echo $m['name']; ?>
+                                    </p>
+                                    <p class="truncate w-full text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 font-medium">
+                                        <?php echo $m['role']; ?>
+                                    </p>
+                                    <p class="text-[10px] font-black text-purple-600 dark:text-purple-400 mt-1.5">
+                                        <?php echo number_format($m['points']); ?> <span class="text-[8px] font-bold text-slate-400">PTS</span>
+                                    </p>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
 
                 </div>
             </div>

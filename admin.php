@@ -178,37 +178,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $date = trim($_POST['date']);
             $location = trim($_POST['location']);
             $description = trim($_POST['description']);
-            $link = trim($_POST['link']);
+            $link = trim($_POST['link'] ?? '');
             
-            // Main image upload
-            $imagePath = null;
+            $allPhotos = [];
+            
+            // Optional primary image upload
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $filename = time() . '_' . basename($_FILES['image']['name']);
+                $filename = time() . '_main_' . basename($_FILES['image']['name']);
                 $targetFile = $uploadDir . $filename;
                 if (move_uploaded_file($_FILES['image']['tmp_name'], $targetFile)) {
-                    $imagePath = $targetFile;
+                    $allPhotos[] = $targetFile;
                 }
             }
             
-            // Gallery images uploads
-            $gallery = [];
+            // Multiple gallery images uploads
             if (isset($_FILES['gallery_images']) && is_array($_FILES['gallery_images']['name'])) {
                 foreach ($_FILES['gallery_images']['name'] as $key => $name) {
                     if ($_FILES['gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
                         $filename = time() . '_' . $key . '_' . basename($name);
                         $targetFile = $uploadDir . $filename;
                         if (move_uploaded_file($_FILES['gallery_images']['tmp_name'][$key], $targetFile)) {
-                            $gallery[] = $targetFile;
+                            $allPhotos[] = $targetFile;
                         }
                     }
                 }
             }
             
-            $galleryJson = count($gallery) > 0 ? json_encode($gallery) : null;
+            $mainImage = !empty($allPhotos) ? $allPhotos[0] : null;
+            $galleryJson = count($allPhotos) > 0 ? json_encode(array_values($allPhotos)) : null;
             
             $stmt = $db->prepare("INSERT INTO `events` (`title`, `type`, `date`, `location`, `description`, `image`, `link`, `gallery`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$title, $type, $date, $location, $description, $imagePath, $link, $galleryJson]);
+            $stmt->execute([$title, $type, $date, $location, $description, $mainImage, $link, $galleryJson]);
             $success = "Event '$title' published successfully.";
+            
+        } elseif ($action === 'edit_event') {
+            $event_id = intval($_POST['event_id']);
+            $title = trim($_POST['title']);
+            $type = $_POST['type'];
+            $date = trim($_POST['date']);
+            $location = trim($_POST['location']);
+            $description = trim($_POST['description']);
+            $link = trim($_POST['link'] ?? '');
+            
+            // Kept existing photos
+            $keptPhotos = [];
+            if (!empty($_POST['kept_photos'])) {
+                $decoded = json_decode($_POST['kept_photos'], true);
+                if (is_array($decoded)) {
+                    $keptPhotos = $decoded;
+                }
+            }
+            
+            // Additional gallery images uploads
+            $newPhotos = [];
+            if (isset($_FILES['additional_gallery_images']) && is_array($_FILES['additional_gallery_images']['name'])) {
+                foreach ($_FILES['additional_gallery_images']['name'] as $key => $name) {
+                    if ($_FILES['additional_gallery_images']['error'][$key] === UPLOAD_ERR_OK) {
+                        $filename = time() . '_' . $key . '_' . basename($name);
+                        $targetFile = $uploadDir . $filename;
+                        if (move_uploaded_file($_FILES['additional_gallery_images']['tmp_name'][$key], $targetFile)) {
+                            $newPhotos[] = $targetFile;
+                        }
+                    }
+                }
+            }
+            
+            $allPhotos = array_merge($keptPhotos, $newPhotos);
+            $mainImage = !empty($allPhotos) ? $allPhotos[0] : null;
+            $galleryJson = count($allPhotos) > 0 ? json_encode(array_values($allPhotos)) : null;
+            
+            $stmt = $db->prepare("UPDATE `events` SET `title` = ?, `type` = ?, `date` = ?, `location` = ?, `description` = ?, `link` = ?, `image` = ?, `gallery` = ? WHERE `id` = ?");
+            $stmt->execute([$title, $type, $date, $location, $description, $link, $mainImage, $galleryJson, $event_id]);
+            $success = "Event '$title' updated successfully.";
+            
+        } elseif ($action === 'delete_event') {
+            $event_id = intval($_POST['event_id']);
+            $stmt = $db->prepare("DELETE FROM `events` WHERE `id` = ?");
+            $stmt->execute([$event_id]);
+            $success = "Event removed successfully.";
             
         } elseif ($action === 'add_post') {
             $title = trim($_POST['title']);
@@ -219,6 +266,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt = $db->prepare("INSERT INTO `posts` (`title`, `category`, `date`, `excerpt`) VALUES (?, ?, ?, ?)");
             $stmt->execute([$title, $category, $date, $excerpt]);
             $success = "Notice published successfully.";
+            
+        } elseif ($action === 'edit_post') {
+            $post_id = intval($_POST['post_id']);
+            $title = trim($_POST['title']);
+            $category = trim($_POST['category']);
+            $date = trim($_POST['date']) ?: date('M d, Y');
+            $excerpt = trim($_POST['excerpt']);
+            
+            $stmt = $db->prepare("UPDATE `posts` SET `title` = ?, `category` = ?, `date` = ?, `excerpt` = ? WHERE `id` = ?");
+            $stmt->execute([$title, $category, $date, $excerpt, $post_id]);
+            $success = "Notice / Blog post updated successfully.";
             
         } elseif ($action === 'delete_post') {
             $post_id = intval($_POST['post_id']);
@@ -668,62 +726,141 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </div>
 
     <!-- 3. SESSIONS & PAST GALLERY TAB -->
-    <div id="events-tab" class="tab-content hidden max-w-3xl mx-auto rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-8 shadow-md">
-        <h3 class="text-xl font-black text-slate-900 dark:text-white font-space mb-2">📅 Publish Event or Workshop</h3>
-        <p class="text-xs text-slate-500 dark:text-zinc-400 mb-6 font-medium">Add upcoming live meetups or upload photo galleries from completed events.</p>
-        
-        <form action="admin.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-            <input type="hidden" name="action" value="add_event">
-            
-            <div>
-                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Event Title</label>
-                <input type="text" name="title" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+    <div id="events-tab" class="tab-content hidden space-y-8">
+        <div class="grid gap-8 lg:grid-cols-3">
+            <!-- Form: Publish Event -->
+            <div class="lg:col-span-1 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-6 shadow-md hover-glow-card">
+                <h3 class="text-lg font-black text-slate-900 dark:text-white font-space mb-2">📅 Publish Event</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mb-4 font-medium">Add upcoming live meetups or completed workshops with multi-photo galleries.</p>
+                
+                <form action="admin.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="action" value="add_event">
+                    
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Event Title</label>
+                        <input type="text" name="title" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Status Type</label>
+                            <select name="type" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0d0a15] px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                                <option value="upcoming">Upcoming</option>
+                                <option value="past">Completed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Date</label>
+                            <input type="text" name="date" required placeholder="May 12, 2026" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Location Venue</label>
+                            <input type="text" name="location" required placeholder="CS Dept Lab 2" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Registration Link</label>
+                            <input type="url" name="link" placeholder="https://..." class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Event Photos (Select multiple at once)</label>
+                        <input type="file" name="gallery_images[]" accept="image/*" multiple class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                        <p class="text-[10px] text-slate-400 mt-1">Upload multiple photos for this event. They will show in the carousel.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Optional Separate Cover Banner</label>
+                        <input type="file" name="image" accept="image/*" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Session Description</label>
+                        <textarea name="description" rows="3" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full rounded-full bg-purple-600 hover:bg-purple-500 py-3 text-xs font-black uppercase tracking-wider text-white transition-all shadow-md shadow-purple-600/20 cursor-pointer">
+                        Publish Event
+                    </button>
+                </form>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Status Type</label>
-                    <select name="type" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0d0a15] px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
-                        <option value="upcoming">Upcoming Event</option>
-                        <option value="past">Completed Event</option>
-                    </select>
+            <!-- List Events (Edit & Delete) -->
+            <div class="lg:col-span-2 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-6 shadow-md">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-black text-slate-900 dark:text-white font-space">Events & Workshops (<?php echo count($events); ?>)</h3>
                 </div>
-                <div>
-                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Date</label>
-                    <input type="text" name="date" required placeholder="May 12, 2026" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                
+                <div class="space-y-4 max-h-[620px] overflow-y-auto pr-2 no-scrollbar">
+                    <?php if (empty($events)): ?>
+                        <p class="text-xs text-slate-500 italic">No events published yet.</p>
+                    <?php else: ?>
+                        <?php foreach ($events as $ev): 
+                            $evPhotos = [];
+                            if (!empty($ev['image'])) $evPhotos[] = $ev['image'];
+                            if (!empty($ev['gallery']) && is_array($ev['gallery'])) {
+                                foreach ($ev['gallery'] as $gp) {
+                                    if (!empty($gp) && !in_array($gp, $evPhotos)) $evPhotos[] = $gp;
+                                }
+                            }
+                        ?>
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] p-4 text-left">
+                                <div class="flex items-start gap-3 min-w-0">
+                                    <?php if (!empty($evPhotos)): ?>
+                                        <img src="<?php echo htmlspecialchars($evPhotos[0]); ?>" alt="" class="h-14 w-14 rounded-xl object-cover border border-slate-200 dark:border-white/10 shrink-0">
+                                    <?php else: ?>
+                                        <div class="h-14 w-14 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg shrink-0">📅</div>
+                                    <?php endif; ?>
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full <?php echo $ev['type'] === 'upcoming' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'; ?>">
+                                                <?php echo ucfirst($ev['type']); ?>
+                                            </span>
+                                            <span class="text-[9px] font-bold text-slate-400">
+                                                📅 <?php echo htmlspecialchars($ev['date']); ?>
+                                            </span>
+                                            <span class="text-[9px] font-bold text-slate-400">
+                                                📍 <?php echo htmlspecialchars($ev['location']); ?>
+                                            </span>
+                                            <span class="rounded-full bg-slate-100 dark:bg-white/5 px-2 py-0.5 text-[9px] font-extrabold text-purple-600 dark:text-purple-400">
+                                                📷 <?php echo count($evPhotos); ?> <?php echo count($evPhotos) === 1 ? 'photo' : 'photos'; ?>
+                                            </span>
+                                        </div>
+                                        <h4 class="text-sm font-bold text-slate-900 dark:text-white mt-1 truncate"><?php echo htmlspecialchars($ev['title']); ?></h4>
+                                        <p class="text-xs text-slate-500 line-clamp-1 mt-0.5"><?php echo htmlspecialchars($ev['description']); ?></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                    <button type="button" 
+                                        onclick="openEditEventModal(this)"
+                                        data-id="<?php echo $ev['id']; ?>"
+                                        data-title="<?php echo htmlspecialchars($ev['title'], ENT_QUOTES); ?>"
+                                        data-type="<?php echo htmlspecialchars($ev['type'], ENT_QUOTES); ?>"
+                                        data-date="<?php echo htmlspecialchars($ev['date'], ENT_QUOTES); ?>"
+                                        data-location="<?php echo htmlspecialchars($ev['location'], ENT_QUOTES); ?>"
+                                        data-link="<?php echo htmlspecialchars($ev['link'] ?? '', ENT_QUOTES); ?>"
+                                        data-description="<?php echo htmlspecialchars($ev['description'], ENT_QUOTES); ?>"
+                                        data-photos="<?php echo htmlspecialchars(json_encode($evPhotos), ENT_QUOTES); ?>"
+                                        class="rounded-full bg-purple-600/10 border border-purple-500/20 hover:bg-purple-600/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 cursor-pointer transition-colors">
+                                        Edit
+                                    </button>
+                                    <form action="admin.php" method="POST" onsubmit="return confirm('Delete event \'<?php echo addslashes($ev['title']); ?>\'?');" class="inline">
+                                        <input type="hidden" name="action" value="delete_event">
+                                        <input type="hidden" name="event_id" value="<?php echo $ev['id']; ?>">
+                                        <button type="submit" class="rounded-full bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 cursor-pointer transition-colors">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Location Venue</label>
-                    <input type="text" name="location" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
-                </div>
-                <div>
-                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Registration or Info Link</label>
-                    <input type="url" name="link" placeholder="https://..." class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Primary Banner Image Upload (For Upcoming)</label>
-                <input type="file" name="image" accept="image/*" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
-            </div>
-
-            <div>
-                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Gallery Image Uploads (For Completed, select multiple)</label>
-                <input type="file" name="gallery_images[]" accept="image/*" multiple class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
-            </div>
-
-            <div>
-                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Session Description</label>
-                <textarea name="description" rows="3" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"></textarea>
-            </div>
-
-            <button type="submit" class="w-full rounded-full bg-purple-600 hover:bg-purple-500 py-3 text-xs font-black uppercase tracking-wider text-white transition-all shadow-md shadow-purple-600/20 cursor-pointer">
-                Publish Event
-            </button>
-        </form>
+        </div>
     </div>
 
     <!-- 4. NOTICES & BLOG TAB -->
@@ -758,7 +895,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </form>
             </div>
 
-            <!-- List Notices (Delete notices) -->
+            <!-- List Notices (Edit & Delete notices) -->
             <div class="lg:col-span-2 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-6 shadow-md">
                 <h3 class="text-lg font-black text-slate-900 dark:text-white font-space mb-4">Current Notices Bulletin (<?php echo count($posts); ?>)</h3>
                 
@@ -776,13 +913,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     <p class="text-xs text-slate-500 mt-1"><?php echo $post['excerpt']; ?></p>
                                 </div>
                                 
-                                <form action="admin.php" method="POST" onsubmit="return confirm('Delete notice?');">
-                                    <input type="hidden" name="action" value="delete_post">
-                                    <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                    <button type="submit" class="rounded-full bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 cursor-pointer">
-                                        Delete
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button type="button" 
+                                        onclick="openEditPostModal(this)"
+                                        data-id="<?php echo $post['id']; ?>"
+                                        data-title="<?php echo htmlspecialchars($post['title'], ENT_QUOTES); ?>"
+                                        data-category="<?php echo htmlspecialchars($post['category'], ENT_QUOTES); ?>"
+                                        data-date="<?php echo htmlspecialchars($post['date'], ENT_QUOTES); ?>"
+                                        data-excerpt="<?php echo htmlspecialchars($post['excerpt'], ENT_QUOTES); ?>"
+                                        class="rounded-full bg-purple-600/10 border border-purple-500/20 hover:bg-purple-600/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 cursor-pointer transition-colors">
+                                        Edit
                                     </button>
-                                </form>
+                                    <form action="admin.php" method="POST" onsubmit="return confirm('Delete notice?');">
+                                        <input type="hidden" name="action" value="delete_post">
+                                        <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                        <button type="submit" class="rounded-full bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 cursor-pointer">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -1256,6 +1405,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </div>
 </div>
 
+<!-- Edit Event Modal overlay -->
+<div id="edit-event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
+    <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0c0817] p-6 shadow-2xl relative text-left no-scrollbar">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white font-space">Edit Event / Workshop</h3>
+            <button type="button" onclick="closeEditEventModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
+        </div>
+        <form action="admin.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" name="action" value="edit_event">
+            <input type="hidden" name="event_id" id="edit-event-id">
+            <input type="hidden" name="kept_photos" id="edit-event-kept-photos">
+            
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Event Title</label>
+                <input type="text" name="title" id="edit-event-title" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Status Type</label>
+                    <select name="type" id="edit-event-type" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0d0a15] px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                        <option value="upcoming">Upcoming</option>
+                        <option value="past">Completed</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Date</label>
+                    <input type="text" name="date" id="edit-event-date" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Location Venue</label>
+                    <input type="text" name="location" id="edit-event-location" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Registration Link</label>
+                    <input type="url" name="link" id="edit-event-link" placeholder="https://..." class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Session Description</label>
+                <textarea name="description" id="edit-event-description" rows="3" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"></textarea>
+            </div>
+
+            <!-- Current Photos Gallery Manager -->
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1.5">Attached Photos (Click ✕ to remove)</label>
+                <div id="edit-event-photos-grid" class="flex flex-wrap gap-2.5 p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 min-h-[70px] max-h-44 overflow-y-auto"></div>
+            </div>
+
+            <!-- Add More Photos Input -->
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Add More Photos (Select multiple files)</label>
+                <input type="file" name="additional_gallery_images[]" accept="image/*" multiple class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                <p class="text-[10px] text-slate-400 mt-1">Select one or multiple photos to append to this event.</p>
+            </div>
+
+            <div class="flex gap-2.5 pt-2">
+                <button type="submit" class="flex-grow rounded-full bg-purple-600 hover:bg-purple-500 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-all cursor-pointer shadow-md shadow-purple-600/20">
+                    Save Event Changes
+                </button>
+                <button type="button" onclick="closeEditEventModal()" class="rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 text-center cursor-pointer">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Notice / Blog Modal overlay -->
+<div id="edit-post-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
+    <div class="w-full max-w-md rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0c0817] p-6 shadow-2xl relative text-left">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white font-space">Edit Notice / Blog</h3>
+            <button type="button" onclick="closeEditPostModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
+        </div>
+        <form action="admin.php" method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="edit_post">
+            <input type="hidden" name="post_id" id="edit-post-id">
+            
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Notice Title</label>
+                <input type="text" name="title" id="edit-post-title" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Category Tag</label>
+                    <input type="text" name="category" id="edit-post-category" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Date</label>
+                    <input type="text" name="date" id="edit-post-date" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Excerpt / Content</label>
+                <textarea name="excerpt" id="edit-post-excerpt" rows="4" required class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"></textarea>
+            </div>
+
+            <div class="flex gap-2.5 pt-2">
+                <button type="submit" class="flex-grow rounded-full bg-purple-600 hover:bg-purple-500 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-all cursor-pointer shadow-md shadow-purple-600/20">
+                    Save Notice Changes
+                </button>
+                <button type="button" onclick="closeEditPostModal()" class="rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 text-center cursor-pointer">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 // Switch tabs logic
 function switchTab(tabId) {
@@ -1414,6 +1679,110 @@ function closeEditSwagModal() {
     const modal = document.getElementById('edit-swag-modal');
     modal.style.display = 'none';
     modal.classList.add('hidden');
+}
+
+// Edit Event Modal Handlers
+let currentEditPhotos = [];
+
+function openEditEventModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const title = btn.getAttribute('data-title');
+    const type = btn.getAttribute('data-type');
+    const date = btn.getAttribute('data-date');
+    const location = btn.getAttribute('data-location');
+    const link = btn.getAttribute('data-link');
+    const description = btn.getAttribute('data-description');
+    const photosJson = btn.getAttribute('data-photos');
+
+    document.getElementById('edit-event-id').value = id;
+    document.getElementById('edit-event-title').value = title;
+    document.getElementById('edit-event-type').value = type;
+    document.getElementById('edit-event-date').value = date;
+    document.getElementById('edit-event-location').value = location;
+    document.getElementById('edit-event-link').value = link || '';
+    document.getElementById('edit-event-description').value = description;
+
+    try {
+        currentEditPhotos = JSON.parse(photosJson) || [];
+    } catch (e) {
+        currentEditPhotos = [];
+    }
+    renderEditPhotosList();
+
+    const modal = document.getElementById('edit-event-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+    }
+}
+
+function renderEditPhotosList() {
+    const container = document.getElementById('edit-event-photos-grid');
+    const keptInput = document.getElementById('edit-event-kept-photos');
+    if (!container || !keptInput) return;
+
+    keptInput.value = JSON.stringify(currentEditPhotos);
+    container.innerHTML = '';
+
+    if (currentEditPhotos.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 italic py-2">No photos currently attached to this event.</p>';
+        return;
+    }
+
+    currentEditPhotos.forEach((photoUrl, idx) => {
+        const item = document.createElement('div');
+        item.className = 'relative group w-16 h-16 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shrink-0';
+        item.innerHTML = `
+            <img src="${photoUrl}" class="w-full h-full object-cover">
+            <button type="button" onclick="removeEditPhoto(${idx})" title="Remove photo" class="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold shadow hover:bg-red-700 cursor-pointer">
+                ✕
+            </button>
+            ${idx === 0 ? '<span class="absolute bottom-0 inset-x-0 bg-purple-600/90 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider">Main</span>' : ''}
+        `;
+        container.appendChild(item);
+    });
+}
+
+function removeEditPhoto(index) {
+    currentEditPhotos.splice(index, 1);
+    renderEditPhotosList();
+}
+
+function closeEditEventModal() {
+    const modal = document.getElementById('edit-event-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+    }
+}
+
+// Edit Notice / Blog Modal Handlers
+function openEditPostModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const title = btn.getAttribute('data-title');
+    const category = btn.getAttribute('data-category');
+    const date = btn.getAttribute('data-date');
+    const excerpt = btn.getAttribute('data-excerpt');
+
+    document.getElementById('edit-post-id').value = id;
+    document.getElementById('edit-post-title').value = title;
+    document.getElementById('edit-post-category').value = category;
+    document.getElementById('edit-post-date').value = date;
+    document.getElementById('edit-post-excerpt').value = excerpt;
+
+    const modal = document.getElementById('edit-post-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeEditPostModal() {
+    const modal = document.getElementById('edit-post-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+    }
 }
 
 // Active Tab buttons styling injected via class
