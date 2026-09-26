@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         if ($action === 'add_member') {
             $name = trim($_POST['name'] ?? '');
-            $member_code = trim($_POST['member_code'] ?? '');
             $password = trim($_POST['password'] ?? '');
             $role = trim($_POST['role'] ?? '');
             $team = $_POST['team'] ?? 'Technical';
@@ -43,16 +42,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $campus = trim($_POST['campus'] ?? '') ?: 'BZU';
             $responsibilities = trim($_POST['responsibilities'] ?? '');
             
-            if (empty($name) || empty($member_code) || empty($password)) {
-                $error = "Full Name, Member ID, and Password are required to create a builder account.";
+            if (empty($name) || empty($password)) {
+                $error = "Full Name and Password are required to create a builder account.";
             } else {
-                // Check if member_code already exists
-                $chk = $db->prepare("SELECT id FROM `members` WHERE LOWER(`member_code`) = LOWER(?)");
-                $chk->execute([$member_code]);
-                if ($chk->fetch()) {
-                    $error = "Member ID '$member_code' already exists. Please assign a unique Member ID.";
-                } else {
-                    // Handle image upload
+                // Automatically assign the lowest available reusable Member ID (SBG-001, SBG-002, ...).
+                $usedCodes = $db->query("SELECT `member_code` FROM `members` WHERE `member_code` IS NOT NULL AND `member_code` <> ''")->fetchAll(PDO::FETCH_COLUMN);
+                $usedIds = [];
+                foreach ($usedCodes as $code) {
+                    if (preg_match('/^SBG-(\\d+)$/i', trim((string)$code), $match)) {
+                        $usedIds[(int)$match[1]] = true;
+                    }
+                }
+                $nextMemberNumber = 1;
+                while (isset($usedIds[$nextMemberNumber])) {
+                    $nextMemberNumber++;
+                }
+                $member_code = 'SBG-' . str_pad((string)$nextMemberNumber, 3, '0', STR_PAD_LEFT);
+
+                // Handle image upload
                     $imagePath = 'public/images/AWS-MembersPics/default.png';
                     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                         $filename = time() . '_' . basename($_FILES['image']['name']);
@@ -71,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $passHash = password_hash($password, PASSWORD_DEFAULT);
                     $stmt = $db->prepare("INSERT INTO `members` (`member_code`, `name`, `role`, `team`, `level`, `points`, `campus`, `responsibilities`, `image`, `password`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$member_code, $name, $role, $team, $level, $points, $campus, $responsibilities, $imagePath, $passHash]);
-                    $success = "Builder '$name' (Member ID: <strong>$member_code</strong>) added successfully with custom login credentials.";
+                    $success = "Builder '$name' (Member ID: <strong>$member_code</strong>) added successfully with automatically assigned login credentials.";
                 }
             }
             
@@ -545,11 +552,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <input type="text" name="name" required placeholder="e.g. Ali Ahmed" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Member ID (Login ID)</label>
-                            <input type="text" name="member_code" required placeholder="e.g. SBG-105" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 font-mono">
-                        </div>
-                        <div>
+                        <div class="col-span-2">
                             <label class="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-1">Account Password</label>
                             <input type="password" name="password" required placeholder="••••••••" class="form-input w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500">
                         </div>
