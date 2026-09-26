@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <span class="text-2xl font-black text-amber-500 font-space">⚡ <?php echo number_format($current_member['points'], 2); ?> <span class="text-xs text-slate-400 font-sans">PTS</span></span>
                 </div>
                 <a href="account.php" class="rounded-full bg-purple-600 hover:bg-purple-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-white transition-all shadow-md shadow-purple-600/20 cursor-pointer">
-                    ✏️ Edit Profile
+                    ✏️ EDIT PROFILE
                 </a>
                 <button type="button" onclick="openMyClaimsModal()" class="rounded-full bg-slate-900 dark:bg-white/10 hover:bg-slate-800 dark:hover:bg-white/20 px-5 py-3 text-xs font-black uppercase tracking-wider text-white transition-all shadow-md cursor-pointer">
                     📜 My Claims History
