@@ -415,6 +415,7 @@ if ($current_page === 'index') {
                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             <?php echo htmlspecialchars($_SESSION['user_name'] ?? ($_SESSION['role'] === 'admin' ? 'Chapter Lead' : ($_SESSION['member_name'] ?? 'Builder'))); ?>
                         </span>
+                        <a href="account.php" class="rounded-full bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-300 transition-all shadow-sm">Account</a>
                         <a href="logout.php" class="rounded-full bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 transition-all shadow-sm">
                             Logout
                         </a>
