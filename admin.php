@@ -80,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt->execute([$member_code, $name, $role, $team, $level, $points, $campus, $responsibilities, $imagePath, $passHash]);
                     $success = "Builder '$name' (Member ID: <strong>$member_code</strong>) added successfully with automatically assigned login credentials.";
                 }
-            }
             
         } elseif ($action === 'reset_member_password') {
             $member_id = intval($_POST['member_id']);
