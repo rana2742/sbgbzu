@@ -241,7 +241,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
                     // Keep the original "Get Yours!" caption below it untouched.
                     // Keep a clear gap above the original caption so 'Get Yours!' remains fully visible.
                     // Keep the replacement QR fully above the caption baseline.
-                    imagecopyresized($card, $qrImage, 675, 680, 0, 0, 56, 56, imagesx($qrImage), imagesy($qrImage));
+                    // Render a larger QR with nearest-neighbour scaling to keep module edges crisp.
+                    imagecopyresized($card, $qrImage, 670, 674, 0, 0, 68, 68, imagesx($qrImage), imagesy($qrImage));
                     imagedestroy($qrImage);
 
                     $privateDir = dirname(__DIR__) . '/sbg-private/attendee_cards';
